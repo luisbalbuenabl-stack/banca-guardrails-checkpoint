@@ -1,7 +1,0 @@
-# Check Point AI Guardrails REAL con el modelo simulado: prueba los cuatro
-# puntos contra la API de Check Point sin gastar tokens del LLM.
-# Uso: make sin-llm   (y despues `make up` para volver al LLM real)
-services:
-  agente:
-    environment:
-      LLM_PROVIDER: simulado

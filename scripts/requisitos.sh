@@ -10,8 +10,9 @@ ok "${PRETTY_NAME:-Linux} (kernel $(uname -r))"
 ARQ=$(uname -m)
 case "$ARQ" in x86_64|aarch64) ok "arquitectura $ARQ" ;; *) mal "arquitectura $ARQ (se necesita x86_64 o aarch64)" ;; esac
 CPU=$(nproc); [ "$CPU" -ge 2 ] && ok "$CPU CPU" || ojo "$CPU CPU (recomendado 2 o mas)"
-RAM=$(awk '/MemTotal/ {printf "%d", $2/1024/1024}' /proc/meminfo)
-[ "$RAM" -ge 4 ] && ok "${RAM} GB de RAM" || ojo "${RAM} GB de RAM (recomendado 4 o mas)"
+# Una VM de 4 GB reporta algo menos (el kernel reserva una parte): se acepta desde 3500 MB.
+RAM=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo)
+[ "$RAM" -ge 3500 ] && ok "${RAM} MB de RAM" || ojo "${RAM} MB de RAM (recomendado 4 GB)"
 DISCO=$(df -BG --output=avail "$HOME" | tail -1 | tr -dc 0-9)
 [ "$DISCO" -ge 10 ] && ok "${DISCO} GB libres en $HOME" || ojo "${DISCO} GB libres (recomendado 10 o mas)"
 timedatectl show -p NTPSynchronized --value 2>/dev/null | grep -q yes \
@@ -42,15 +43,13 @@ if ss -ltn 2>/dev/null | awk '{print $4}' | grep -q ":$P\$"; then
   docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null | grep -q "^banca-guardrails-puente.*:$P->" \
     && ok "$P en uso por el puente de este laboratorio" || ojo "el $P lo usa otro servicio: cambia PUENTE_PUERTO en el .env"
 else ok "$P libre"; fi
-ojo "los puertos que publica Docker no pasan por ufw/firewalld: limita el acceso con PUENTE_BIND o la red"
 
 echo "== Proxy"
 [ -n "${https_proxy:-${HTTPS_PROXY:-}}" ] && ojo "hay proxy HTTPS configurado: Docker lo necesita aparte" || ok "sin proxy"
 
 echo "== Salida a Internet (cualquier codigo HTTP = hay ruta; 000 = bloqueado)"
 for u in https://download.docker.com https://registry-1.docker.io/v2/ https://pypi.org/simple/ \
-         https://claude.ai https://downloads.claude.ai https://api.anthropic.com \
-         https://generativelanguage.googleapis.com https://api.openai.com \
+         https://github.com https://generativelanguage.googleapis.com https://api.openai.com \
          https://api.lakera.ai; do
   c=$(curl -s -o /dev/null -m 10 -w '%{http_code}' "$u")
   [ "$c" = "000" ] && mal "$u -> sin ruta" || ok "$u -> $c"

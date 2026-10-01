@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Proveedor del modelo: gemini (API key de Google AI Studio), openai (via
-# LiteLLM) o simulado (sin red, solo para las pruebas de humo).
+# Proveedor del modelo: gemini (API key de Google AI Studio) u openai (via
+# LiteLLM).
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini").strip().lower()
 
 # Nombre del modelo de cada rol, tal como lo publica el proveedor. En openai
@@ -17,9 +17,6 @@ _CON = os.environ.get("MODEL_KNOWLEDGE", "")
 
 def modelo(nombre: str):
     """El objeto de modelo que espera ADK para el proveedor elegido."""
-    if LLM_PROVIDER == "simulado":
-        from bank_agents.shared.llm_simulado import LlmSimulado
-        return LlmSimulado(model="simulado")
     if not nombre:
         raise SystemExit("Falta el nombre del modelo en el .env (MODEL_*).")
     if LLM_PROVIDER == "openai":
