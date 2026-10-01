@@ -1,0 +1,10 @@
+# Versiones con las que se valido el kit.
+google-adk==2.10.0
+litellm==1.103.1
+SQLAlchemy[asyncio]==2.1.1
+asyncpg==0.31.0
+aiosqlite==0.22.1
+fastapi==0.141.1
+uvicorn[standard]==0.54.0
+httpx==0.28.1
+python-dotenv==1.2.3

@@ -1,0 +1,26 @@
+# Prueba de humo SIN red externa ni API keys: modelo simulado y un imitador
+# local de Check Point AI Guardrails. Valida contenedores, base de datos,
+# memoria, puente y los cuatro puntos. Uso: make humo-offline
+services:
+  guard-simulado:
+    build:
+      context: .
+      dockerfile: agente/Dockerfile
+    image: banca-guardrails/agente:local
+    command: ["uvicorn", "guard_simulado:app", "--app-dir", "/app/pruebas", "--host", "0.0.0.0", "--port", "9000"]
+    environment:
+      GUARD_ACCION: enforce
+
+  agente:
+    environment:
+      LLM_PROVIDER: simulado
+      LAKERA_GUARD_API_KEY: simulada
+      LAKERA_URL: http://guard-simulado:9000/v2/guard
+    depends_on:
+      guard-simulado:
+        condition: service_started
+
+  puente:
+    environment:
+      LAKERA_GUARD_API_KEY: simulada
+      LAKERA_URL: http://guard-simulado:9000/v2/guard

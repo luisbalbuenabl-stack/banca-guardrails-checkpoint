@@ -1,0 +1,75 @@
+# Laboratorio de banca on-premise con Check Point AI Guardrails: agente +
+# puente + PostgreSQL en un host Linux. Solo salen a Internet el LLM (Gemini u
+# OpenAI) y Check Point AI Guardrails. El puente es lo unico que publica un puerto.
+# El proyecto de Compose, las imagenes, la red y el volumen llevan el prefijo
+# banca-guardrails.
+
+name: banca-guardrails
+
+x-guardrails: &guardrails
+  LAKERA_GUARD_API_KEY: ${LAKERA_GUARD_API_KEY:-}
+  LAKERA_PROJECT_ID: ${LAKERA_PROJECT_ID:-}
+  LAKERA_URL: ${LAKERA_URL:-https://api.lakera.ai/v2/guard}
+  LAKERA_MODO: ${LAKERA_MODO:-auto}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: banca
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en el .env}
+      POSTGRES_DB: banca
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banca -d banca"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  agente:
+    build:
+      context: .
+      dockerfile: agente/Dockerfile
+    image: banca-guardrails/agente:local
+    environment:
+      <<: *guardrails
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      MODEL_ORCHESTRATOR: ${MODEL_ORCHESTRATOR:-}
+      MODEL_SPECIALIST: ${MODEL_SPECIALIST:-}
+      MODEL_KNOWLEDGE: ${MODEL_KNOWLEDGE:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GOOGLE_GENAI_USE_VERTEXAI: "FALSE"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      PERFIL_AGENTE: ${PERFIL_AGENTE:-vulnerable}
+      DB_URL: postgresql+asyncpg://banca:${DB_PASSWORD}@db:5432/banca
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    # Sin "ports": solo lo alcanza el puente por la red interna.
+
+  puente:
+    build:
+      context: .
+      dockerfile: puente/Dockerfile
+    image: banca-guardrails/puente:local
+    environment:
+      <<: *guardrails
+      PUENTE_TOKEN: ${PUENTE_TOKEN:?Falta PUENTE_TOKEN en el .env (make token)}
+      AGENTE_URL: http://agente:8000
+    ports:
+      - "${PUENTE_BIND:-0.0.0.0}:${PUENTE_PUERTO:-8080}:8080"
+    depends_on:
+      agente:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
