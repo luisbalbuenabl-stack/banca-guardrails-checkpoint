@@ -16,6 +16,10 @@ turno() {  # turno "mensaje" -> JSON de /consola/chat en $R y el tiempo en $T
 }
 campo() { python3 -c "import sys,json; d=json.loads(sys.argv[1]); print($1)" "$R" 2>/dev/null; }
 
+# make up regresa en cuanto arrancan los contenedores; el puente tarda unos
+# segundos mas en escuchar. Se espera hasta un minuto a que responda.
+for _ in $(seq 1 30); do curl -sf "$URL/health" >/dev/null && break; sleep 2; done
+
 echo "== health"
 curl -s "$URL/health"; echo
 [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/consola/chat" -H 'Content-Type: application/json' -d '{"message":"hola"}')" = "403" ] \

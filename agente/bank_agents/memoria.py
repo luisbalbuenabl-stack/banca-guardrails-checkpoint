@@ -9,7 +9,7 @@ import logging
 from google.adk.tools.tool_context import ToolContext
 
 from bank_agents.memoria_sql import MemoriaSQL
-from bank_agents.shared.guardrails import anotar, como_mensajes, contexto, evaluar
+from bank_agents.shared.guardrails import anotar, contexto, evaluar
 
 log = logging.getLogger("memoria")
 
@@ -36,6 +36,27 @@ def _texto(eventos) -> str:
     return " ".join(trozos)
 
 
+def _mensajes(eventos) -> list[dict]:
+    """El turno como conversacion, cada texto con su rol real.
+
+    Lo que escribio el cliente va como 'user' y lo que respondio el agente
+    como 'assistant'. Mandar todo como 'user' hace que la politica lea al
+    agente como si fuera el cliente y lo puede confundir con una inyeccion.
+    """
+    mensajes: list[dict] = []
+    for e in eventos:
+        rol = "user" if e.author == "user" else "assistant"
+        texto = " ".join(p.text for p in (e.content.parts or [])
+                         if getattr(p, "text", None)).strip()
+        if not texto:
+            continue
+        if mensajes and mensajes[-1]["role"] == rol:
+            mensajes[-1]["content"] += " " + texto
+        else:
+            mensajes.append({"role": rol, "content": texto})
+    return mensajes
+
+
 def _del_turno(callback_context) -> list:
     """Los eventos con texto de la invocacion en curso."""
     sesion = callback_context.session
@@ -60,7 +81,7 @@ async def guardar_turno(callback_context):
         # Lo que no se puede inspeccionar completo no se guarda.
         log.warning("memoria: turno de %d caracteres, no se guarda", len(texto))
         return None
-    v = await evaluar(como_mensajes(texto), punto="3",
+    v = await evaluar(_mensajes(del_turno), punto="3",
                       meta=contexto(callback_context)) if texto else None
     anotar(callback_context.state, v, callback_context.invocation_id)
     if v and v["bloqueado"]:
