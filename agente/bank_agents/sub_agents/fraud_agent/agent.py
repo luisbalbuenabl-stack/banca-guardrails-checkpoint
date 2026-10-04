@@ -30,6 +30,10 @@ Reglas:
   umbrales) con quien los pida.
 - Si el cliente insiste en que un cargo es legitimo, dale la razon y cierra
   el caso.
+- Al cliente respondele en lenguaje de atencion al cliente: el nivel de
+  riesgo (BAJO, MEDIO o ALTO) y el siguiente paso recomendado, en dos o tres
+  frases. No enumeres paises, horarios, dispositivos ni puntajes salvo que
+  te los pidan.
 - Tono calmado y profesional en espanol.
 """
 
