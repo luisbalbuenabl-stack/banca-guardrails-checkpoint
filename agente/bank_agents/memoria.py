@@ -9,7 +9,7 @@ import logging
 from google.adk.tools.tool_context import ToolContext
 
 from bank_agents.memoria_sql import MemoriaSQL
-from bank_agents.shared.guardrails import anotar, como_mensajes, evaluar
+from bank_agents.shared.guardrails import anotar, como_mensajes, contexto, evaluar
 
 log = logging.getLogger("memoria")
 
@@ -60,7 +60,8 @@ async def guardar_turno(callback_context):
         # Lo que no se puede inspeccionar completo no se guarda.
         log.warning("memoria: turno de %d caracteres, no se guarda", len(texto))
         return None
-    v = await evaluar(como_mensajes(texto), punto="3") if texto else None
+    v = await evaluar(como_mensajes(texto), punto="3",
+                      meta=contexto(callback_context)) if texto else None
     anotar(callback_context.state, v, callback_context.invocation_id)
     if v and v["bloqueado"]:
         # La sesion sigue; lo que no pasa el filtro no se consolida y

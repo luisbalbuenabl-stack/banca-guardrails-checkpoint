@@ -28,11 +28,27 @@ def activo() -> bool:
     return bool(KEY and _cliente)
 
 
-async def evaluar(messages: list[dict], punto: str = "?") -> dict | None:
-    """Veredicto completo de la politica, corte o no. None si no hay veredicto."""
+def contexto(ctx) -> dict:
+    """Sesion, cliente y agente de un contexto de ADK, para los metadatos."""
+    sesion = getattr(ctx, "session", None)
+    return {"session_id": getattr(sesion, "id", None),
+            "user_id": getattr(ctx, "user_id", None),
+            "agente": getattr(ctx, "agent_name", None)}
+
+
+async def evaluar(messages: list[dict], punto: str = "?",
+                  meta: dict | None = None) -> dict | None:
+    """Veredicto completo de la politica, corte o no. None si no hay veredicto.
+
+    'metadata' son etiquetas libres de la peticion; Check Point las guarda con
+    el evento del portal para filtrar e investigar (punto, herramienta,
+    sesion, cliente).
+    """
     if not activo():
         return None
-    cuerpo = {"messages": messages, "breakdown": True}
+    etiquetas = {"laboratorio": "banca-guardrails", "punto": str(punto)}
+    etiquetas.update({k: str(v) for k, v in (meta or {}).items() if v})
+    cuerpo = {"messages": messages, "breakdown": True, "metadata": etiquetas}
     if PROJECT:
         cuerpo["project_id"] = PROJECT
     try:
@@ -61,16 +77,18 @@ async def evaluar(messages: list[dict], punto: str = "?") -> dict | None:
         bloqueado = marcado and accion == "enforce"
 
     if detectores:
-        log.warning("guardrails punto=%s action=%s flagged=%s detectores=%s %s",
-                    punto, accion, marcado, detectores, confianza)
+        log.warning("guardrails punto=%s action=%s flagged=%s detectores=%s %s %s",
+                    punto, accion, marcado, detectores, confianza,
+                    etiquetas.get("herramienta", ""))
 
     return {"punto": punto, "detectores": detectores, "confianza": confianza,
             "accion": accion, "bloqueado": bloqueado}
 
 
-async def revisar(messages: list[dict], punto: str = "?") -> dict | None:
+async def revisar(messages: list[dict], punto: str = "?",
+                  meta: dict | None = None) -> dict | None:
     """El veredicto solo si hay que BLOQUEAR. None = dejar pasar."""
-    v = await evaluar(messages, punto)
+    v = await evaluar(messages, punto, meta)
     return v if v and v["bloqueado"] else None
 
 

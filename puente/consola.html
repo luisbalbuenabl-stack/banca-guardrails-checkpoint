@@ -73,6 +73,9 @@
   .msg.corte{align-self:flex-start;background:var(--cpbg);border:1px solid var(--cp);border-bottom-left-radius:5px;}
   .msg .quien{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--dim);margin-bottom:7px;}
   .msg.corte .quien{color:var(--cp2);}
+  .msg.protegido{align-self:flex-start;background:var(--panel);border:1px solid var(--warnln);border-bottom-left-radius:5px;}
+  .msg.protegido .quien{color:var(--warn);}
+  .msg.retenido{align-self:flex-start;max-width:88%;background:var(--warnbg);border:1px dashed var(--warnln);color:var(--warn);font-family:var(--mono);font-size:12px;}
   .msg.sistema{align-self:center;max-width:90%;background:none;border:1px dashed var(--line);color:var(--dim);
     font-family:var(--mono);font-size:12px;text-align:center;padding:7px 15px;border-radius:999px;line-height:1.5;}
   .escribiendo{align-self:flex-start;display:flex;gap:5px;padding:12px 15px;}
@@ -110,6 +113,7 @@
     background:#191320;color:var(--dim);cursor:pointer;}
   .ht.pasa{border-color:var(--okln);color:var(--ok);}
   .ht.cortado{border-color:var(--cp);color:var(--cp2);background:var(--cpbg);}
+  .ht.protegido{border-color:var(--warnln);color:var(--warn);background:var(--warnbg);}
   .ht.activo{outline:2px solid #fff3;outline-offset:1px;}
 
   .puntos{flex:1;overflow-y:auto;padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;align-content:start;}
@@ -429,10 +433,15 @@
     if (cortes.length) {
       var c = cortes[0];
       resumen.innerHTML = "";
-      resumen.appendChild(elem("div", "rt", "⛔ Bloqueado en el punto " + c.p.id));
+      var finales = cortes.filter(function (x) { return x.p.id === 1 || x.p.id === 4; });
+      var final = finales.length > 0; if (final) { c = finales[0]; }
+      resumen.appendChild(elem("div", "rt", final ? "⛔ Bloqueado en el punto " + c.p.id
+        : (c.p.id === 2 ? "⛨ Dato retenido en el punto 2 · el cliente recibe respuesta segura"
+                        : "⛨ Memoria protegida en el punto 3 · el cliente recibe respuesta")));
       resumen.appendChild(elem("div", "rd", (c.d.join(", ") || "seguridad") + " · " + c.p.etq));
       resumen.appendChild(elem("div", "rn", c.p.id === 2
         ? "El dato de la herramienta no llego al modelo. El cliente pudo escribir una consulta legitima: el ataque venia dentro del dato."
+        : c.p.id === 3 ? "El turno no se escribio en memoria: no podra envenenar sesiones futuras."
         : "El mensaje no siguio su camino. El registro de actividad del portal de Check Point muestra el detalle de la deteccion."));
       resumen.className = "resumen on";
     } else {
@@ -595,12 +604,23 @@
     protegeEl.appendChild(elem("div", "fuente", "OWASP Top 10 for LLM Applications (LLMxx) y OWASP Top 10 for Agentic Applications (ASIxx). Los cuatro puntos consultan el mismo proyecto de AI Guardrails."));
   }
 
+  // Solo los puntos 1 y 4 reemplazan la respuesta por el rechazo. Un corte en
+  // 2 (dato de herramienta) o 3 (memoria) retiene ese contenido, pero el
+  // cliente si recibe la respuesta del agente.
+  function tipoTurno(t) {
+    var g = (t && t.guardrails) || [];
+    var corta = function (ids) { return g.some(function (x) { return x.bloqueado && ids.indexOf(String(x.punto)) >= 0; }); };
+    if (corta(["1", "4"])) { return "cortado"; }
+    if (corta(["2", "3"])) { return "protegido"; }
+    return "pasa";
+  }
+
   function pintarHistorial(activo) {
     historial.innerHTML = "";
     registro.forEach(function (t, i) {
-      var corte = (t.guardrails || []).some(function (g) { return g.bloqueado; });
-      var b = elem("button", "ht " + (corte ? "cortado" : "pasa") + (i === activo ? " activo" : ""),
-                   "T" + (i + 1) + " · " + (corte ? "CORTADO" : "PASA"));
+      var tipo = tipoTurno(t);
+      var b = elem("button", "ht " + tipo + (i === activo ? " activo" : ""),
+                   "T" + (i + 1) + " · " + (tipo === "cortado" ? "CORTADO" : tipo === "protegido" ? "PROTEGIDO" : "PASA"));
       b.addEventListener("click", function () { pintarPuntos(t); pintarFlujo(t); pintarHistorial(i); lat.textContent = t.seg + " s"; });
       historial.appendChild(b);
     });
@@ -624,7 +644,7 @@
     }
     contador.textContent = contados.turnos + " turnos · " + contados.vistos + " detecciones · " + contados.cortados + " cortes";
     lat.textContent = seg + " s";
-    return t.guardrails.some(function (g) { return g.bloqueado; });
+    return t;
   }
 
   // ---------- red ----------
@@ -668,8 +688,20 @@
           else if (f.tipo === "tool") { hilo.appendChild(elem("div", "msg sistema", "\u2192 herramienta: " + f.valor)); }
           else if (f.tipo === "error") { hilo.appendChild(elem("div", "msg sistema", "\u26A0 error del modelo: " + f.valor)); }
         });
-        var corte = registrarTurno(d.guardrails || [], d.modo, seg, d.flujo, texto);
-        mensaje(corte ? "corte" : "agente", corte ? "BLOQUEADO POR CHECK POINT AI GUARDRAILS" : "AGENTE", d.message || "(sin texto)");
+        var t = registrarTurno(d.guardrails || [], d.modo, seg, d.flujo, texto);
+        var tipo = tipoTurno(t);
+        if (tipo === "cortado") {
+          mensaje("corte", "BLOQUEADO POR CHECK POINT AI GUARDRAILS", d.message || "(sin texto)");
+        } else if (tipo === "protegido") {
+          t.guardrails.filter(function (g) { return g.bloqueado; }).forEach(function (g) {
+            hilo.appendChild(elem("div", "msg retenido", String(g.punto) === "2"
+              ? "\u26E8 Check Point AI Guardrails retuvo en el punto 2 un dato de herramienta (" + (g.detectores.join(", ") || "seguridad") + "). El modelo no lo leyo."
+              : "\u26E8 Check Point AI Guardrails no dejo escribir este turno en memoria (punto 3: " + (g.detectores.join(", ") || "seguridad") + ")."));
+          });
+          mensaje("protegido", "AGENTE \u00B7 RESPUESTA SEGURA", d.message || "(sin texto)");
+        } else {
+          mensaje("agente", "AGENTE", d.message || "(sin texto)");
+        }
         if (d.sessionId) { sesion = d.sessionId; badgeSes.textContent = "sesion: " + sesion; }
         document.getElementById("barraConexion").classList.remove("abierta");
       })

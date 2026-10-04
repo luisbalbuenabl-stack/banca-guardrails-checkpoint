@@ -99,7 +99,8 @@ async def atender(turno: Turno, user_id: str, detalle: bool = True) -> dict:
     modo = ""
 
     # PUNTO 1 - lo que entra, antes de gastar tokens del modelo.
-    v1 = await evaluar(como_mensajes(turno.message), punto="1")
+    v1 = await evaluar(como_mensajes(turno.message), punto="1",
+                      meta={"session_id": sid, "user_id": user_id, "superficie": "entrada"})
     if v1 and v1.get("accion"):
         modo = v1["accion"]
     if (r := _resumen(v1)):
@@ -154,7 +155,8 @@ async def atender(turno: Turno, user_id: str, detalle: bool = True) -> dict:
 
     # PUNTO 4 - la interaccion completa, cada mensaje con su rol.
     v4 = await evaluar([{"role": "user", "content": turno.message},
-                        {"role": "assistant", "content": texto}], punto="4")
+                        {"role": "assistant", "content": texto}], punto="4",
+                        meta={"session_id": sid, "user_id": user_id, "superficie": "salida"})
     if (r := _resumen(v4)):
         vistos.append(r)
     if v4 and v4.get("bloqueado"):
