@@ -123,7 +123,10 @@ async def recordar(consulta: str, tool_context: ToolContext) -> dict:
         partes = getattr(getattr(entrada, "content", None), "parts", None) or []
         texto = " ".join(p.text for p in partes if getattr(p, "text", None))
         if texto.strip():
-            recuerdos.append(texto.strip())
+            # Quien lo dijo: lo que afirmo el cliente es el dato; lo que
+            # respondio el banco es contexto.
+            quien = "cliente" if getattr(entrada, "author", "") == "user" else "banco"
+            recuerdos.append(f"{quien}: {texto.strip()}")
 
     if not recuerdos:
         return {"status": "sin_datos"}

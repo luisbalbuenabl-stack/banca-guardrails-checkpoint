@@ -40,9 +40,16 @@ recuerdos = Table(
 )
 
 
+# Palabras vacias: no distinguen un recuerdo de otro y solo meten ruido.
+_VACIAS = set("""a al ante con de del el en es la las lo los mi mis o para
+por que se su sus tu tus un una uno y ya como me te le les yo""".split())
+
+
 def _palabras(texto: str) -> set[str]:
-    texto = unicodedata.normalize("NFC", texto)
-    return {p.lower() for p in re.findall(r"\w+", texto)}
+    """Palabras significativas, en minusculas y sin acentos (nomina = nómina)."""
+    texto = unicodedata.normalize("NFKD", texto.lower())
+    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    return {p for p in re.findall(r"\w+", texto) if p not in _VACIAS}
 
 
 def _texto_evento(evento) -> str:
@@ -102,9 +109,14 @@ class MemoriaSQL(BaseMemoryService):
                 select(recuerdos.c.autor, recuerdos.c.texto, recuerdos.c.creado)
                 .where(recuerdos.c.app_name == app_name,
                        recuerdos.c.user_id == user_id)
-                .order_by(recuerdos.c.id))).all()
-        puntuados = []
+                .order_by(recuerdos.c.id.desc()))).all()
+        # Mas palabras en comun primero; a igualdad, el mas reciente. Un
+        # texto repetido en varias conversaciones cuenta una sola vez.
+        puntuados, vistos = [], set()
         for autor, texto, creado in filas:
+            if texto in vistos:
+                continue
+            vistos.add(texto)
             coinciden = len(buscadas & _palabras(texto))
             if coinciden:
                 puntuados.append((coinciden, MemoryEntry(
