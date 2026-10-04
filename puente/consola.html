@@ -86,6 +86,11 @@
   /* ---------- compositor ---------- */
   .compositor{border-top:1px solid var(--line);padding:14px 22px 18px;background:#120c17;}
   .sugerencias{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .sugerencias.ocultas{display:none;}
+  .sug-barra{display:flex;justify-content:flex-end;margin-bottom:8px;}
+  .sug-toggle{background:none;border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:4px 12px;
+    font-family:var(--mono);font-size:11px;letter-spacing:.06em;cursor:pointer;}
+  .sug-toggle:hover{border-color:var(--cp);color:var(--cp2);}
   .sug{background:#191320;border:1px solid var(--line);color:var(--mut);border-radius:999px;padding:7px 14px;
     font-size:12.5px;cursor:pointer;font-family:inherit;transition:border-color .15s,color .15s,background .15s;}
   .sug:hover{border-color:var(--cp);color:#fff;}
@@ -270,6 +275,7 @@
       pero si puede recordar conversaciones anteriores del mismo cliente.</div>
     </div>
     <div class="compositor">
+      <div class="sug-barra"><button class="sug-toggle" id="btnSug" type="button" aria-expanded="true" aria-controls="sugerencias">&#9662; Ocultar prompts</button></div>
       <div class="sugerencias" id="sugerencias"></div>
       <div class="fila">
         <textarea id="entrada" rows="1" placeholder="Escribe como si fueras el cliente&hellip;"></textarea>
@@ -720,6 +726,19 @@
     document.getElementById("sugerencias").appendChild(b);
   });
   btnEnviar.addEventListener("click", function () { enviar(entrada.value); });
+
+  // Ocultar o mostrar los prompts sugeridos, para dar espacio a respuestas
+  // largas. La eleccion se recuerda en este navegador.
+  var cajaSug = document.getElementById("sugerencias");
+  var btnSug = document.getElementById("btnSug");
+  function verSugerencias(ver) {
+    cajaSug.classList.toggle("ocultas", !ver);
+    btnSug.setAttribute("aria-expanded", ver ? "true" : "false");
+    btnSug.innerHTML = ver ? "&#9662; Ocultar prompts" : "&#9652; Mostrar prompts";
+    try { localStorage.setItem("consola.sugerencias", ver ? "1" : "0"); } catch (e) {}
+  }
+  btnSug.addEventListener("click", function () { verSugerencias(cajaSug.classList.contains("ocultas")); });
+  try { if (localStorage.getItem("consola.sugerencias") === "0") { verSugerencias(false); } } catch (e) {}
   entrada.addEventListener("keydown", function (ev) {
     if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); enviar(entrada.value); }
   });
