@@ -35,7 +35,7 @@ services:
     image: banca-guardrails/agente:local
     environment:
       <<: *guardrails
-      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
       MODEL_ORCHESTRATOR: ${MODEL_ORCHESTRATOR:-}
       MODEL_SPECIALIST: ${MODEL_SPECIALIST:-}
       MODEL_KNOWLEDGE: ${MODEL_KNOWLEDGE:-}

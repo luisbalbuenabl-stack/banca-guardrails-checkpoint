@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
-case "${LLM_PROVIDER:-gemini}" in
+case "${LLM_PROVIDER:-openai}" in
   gemini)
     curl -sS -H "x-goog-api-key: ${GOOGLE_API_KEY:?Falta GOOGLE_API_KEY}" \
       "https://generativelanguage.googleapis.com/v1beta/models?pageSize=200" \

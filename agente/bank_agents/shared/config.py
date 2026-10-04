@@ -6,7 +6,9 @@ load_dotenv()
 
 # Proveedor del modelo: gemini (API key de Google AI Studio) u openai (via
 # LiteLLM).
-LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini").strip().lower()
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "openai").strip().lower()
+if LLM_PROVIDER not in ("openai", "gemini"):
+    raise SystemExit(f"LLM_PROVIDER debe ser openai o gemini (en el .env hay: {LLM_PROVIDER!r}).")
 
 # Nombre del modelo de cada rol, tal como lo publica el proveedor. En openai
 # se escribe sin prefijo (el prefijo "openai/" lo pone modelo()).
